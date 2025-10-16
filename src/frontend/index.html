@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Collaboration</title>
+    <style>
+        body { font-family: sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .project-list, .project-form, .project-details { margin-bottom: 20px; }
+        .project-item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Project Collaboration</h1>
+
+        <div class="project-form">
+            <h2>Create New Project</h2>
+            <form id="create-project-form">
+                <input type="text" id="project-name" placeholder="Project Name" required>
+                <input type="text" id="project-owner" placeholder="Owner" required>
+                <textarea id="project-description" placeholder="Description"></textarea>
+                <button type="submit">Create Project</button>
+            </form>
+        </div>
+
+        <div class="project-list">
+            <h2>Projects</h2>
+            <div id="projects"></div>
+        </div>
+
+        <div id="project-details-container" class="project-details hidden">
+            <h2 id="project-details-name"></h2>
+            <p id="project-details-description"></p>
+            <p><strong>Owner:</strong> <span id="project-details-owner"></span></p>
+            <p><strong>Collaborators:</strong> <span id="project-details-collaborators"></span></p>
+
+            <h3>Add Collaborator</h3>
+            <form id="add-collaborator-form">
+                <input type="text" id="collaborator-name" placeholder="Collaborator Name" required>
+                <button type="submit">Add Collaborator</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const projectsContainer = document.getElementById('projects');
+        const createProjectForm = document.getElementById('create-project-form');
+        const projectDetailsContainer = document.getElementById('project-details-container');
+        let selectedProjectId = null;
+
+        async function fetchProjects() {
+            const response = await fetch('/projects');
+            const projects = await response.json();
+            projectsContainer.innerHTML = '';
+            projects.forEach(project => {
+                const projectElement = document.createElement('div');
+                projectElement.className = 'project-item';
+                projectElement.innerHTML = `
+                    <h3>${project.name}</h3>
+                    <p>${project.description}</p>
+                    <button onclick="viewProject('${project.id}')">View Details</button>
+                `;
+                projectsContainer.appendChild(projectElement);
+            });
+        }
+
+        async function viewProject(projectId) {
+            selectedProjectId = projectId;
+            const response = await fetch(`/projects/${projectId}`);
+            const project = await response.json();
+
+            document.getElementById('project-details-name').textContent = project.name;
+            document.getElementById('project-details-description').textContent = project.description;
+            document.getElementById('project-details-owner').textContent = project.owner;
+            document.getElementById('project-details-collaborators').textContent = project.collaborators.join(', ');
+            projectDetailsContainer.classList.remove('hidden');
+        }
+
+        createProjectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('project-name').value;
+            const owner = document.getElementById('project-owner').value;
+            const description = document.getElementById('project-description').value;
+
+            await fetch('/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, owner, description })
+            });
+            createProjectForm.reset();
+            fetchProjects();
+        });
+
+        document.getElementById('add-collaborator-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const collaborator = document.getElementById('collaborator-name').value;
+
+            await fetch(`/projects/${selectedProjectId}/collaborators`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ collaborator })
+            });
+            document.getElementById('collaborator-name').value = '';
+            viewProject(selectedProjectId);
+        });
+
+        fetchProjects();
+    </script>
+</body>
+</html>
